@@ -5,30 +5,71 @@
   2018.4.18
 %}
 %% format
-clear
+clear;clc;
+close all;
+
+addpath('.\data')
+
+data_original_filename = 'Flt1002_train.h5';
+line_number = 1002.02; 
+
+% data_info = h5info(data_original_filename);
+data_line = h5read(data_original_filename,'/line');
+i1 = find(data_line==line_number, 1 );
+i2 = find(data_line==line_number, 1, 'last' );
+
+tt=readH5File(data_original_filename,'/tt',i1,i2);
+
+flux_b_x=readH5File(data_original_filename,'/flux_b_x',i1,i2);
+flux_b_y=readH5File(data_original_filename,'/flux_b_y',i1,i2);
+flux_b_z=readH5File(data_original_filename,'/flux_b_z',i1,i2);
+flux_b_t=readH5File(data_original_filename,'/flux_b_t',i1,i2);
+
+w_x=readH5File(data_original_filename,'/roll_rate',i1,i2);
+w_y=readH5File(data_original_filename,'/pitch_rate',i1,i2);
+w_z=readH5File(data_original_filename,'/yaw_rate',i1,i2);
+
+
+% flux_b_x = h5read(data_original_filename,'/flux_b_x');
+% flux_b_x=flux_b_x(i1:i2,:);
+% 
+% flux_b_y = h5read(data_original_filename,'/flux_b_y');
+% flux_b_y=flux_b_y(i1:i2,:);
+% 
+% flux_b_z = h5read(data_original_filename,'/flux_b_z');
+% flux_b_z=flux_b_z(i1:i2,:);
+% 
+% flux_b_t = h5read(data_original_filename,'/flux_b_t');
+% flux_b_t=flux_b_t(i1:i2,:);
+
 
 %% load the data
 % [gyro_still] = xlsread('./stableB.xlsx');                                   % 静止时陀螺仪的输出！！！
 % figure
 % plot(gyro_still(1:1000,4:6))
-[data_test] = xlsread('huawei_x1.xlsx');
-mag_test = data_test(:,1:3);
+
+% [data_test] = xlsread('huawei_x1.xlsx');
+% mag_test = data_test(:,1:3);
+mag_test = [flux_b_x,flux_b_y,flux_b_z]*0.01; % convert from nT to mG;
 
 % [data_test]  = xlsread ('数据集\fastwalking_swing_circle.xlsx');     
 % mag_test = data_test(:,1:3)/10;
-testlength      = size( data_test, 1 );
+testlength      = size( mag_test, 1 );
 
 % [M]          = xlsread ('数据集\fastwalking_swing_circle.xlsx');                          % 载入初始数据
 % data.b_p     = M(:,1:3)/10;                                                    % 磁力计测量值，单位为mG
 % data.w       = M(:,4:6)/1800*pi;           
-[M]          = xlsread ('huawei_x1.xlsx');                          % 载入初始数据
-data.b_p     = M(:,1:3);                                                    % 磁力计测量值，单位为mG
-data.w       = M(:,4:6);                                                    % 陀螺仪测量值，单位rad/s
-data.dt      = 0.01;                                                        % 量测时间间隔，单位s
+% [M]          = xlsread ('huawei_x1.xlsx');                          % 载入初始数据
+% data.b_p     = M(:,1:3);                                                    % 磁力计测量值，单位为mG
+% data.w       = M(:,4:6);                                                    % 陀螺仪测量值，单位rad/s
+% data.dt      = 0.01;                                                        % 量测时间间隔，单位s
+data.b_p     = [flux_b_x,flux_b_y,flux_b_z]*0.01; % convert from nT to mG;
+data.w       = [w_x,w_y,w_z]*pi/180.0;            % convert from deg/s to rad/s;
+data.dt      = 0.1;
 data.mrw     = 0.5;                                                         % 磁场b的random walks，单位为mG，依照论文中table I设置的值
 data.wrw     = 0.1/180*pi;                                                  % 角速度w的random walks,单位为degree/（s^1/2）依照论文中table I设置的值                                     % 测量次数
 data.m       = size( data.b_p, 1 );
-data.phi     = 100;                                                         % 论文中公式17中的参数，用于表示陀螺仪的可靠程度。
+data.phi     = 50;                                                         % 论文中公式17中的参数，用于表示陀螺仪的可靠程度。
 data.P       = [500*eye(3) zeros(3,6)  zeros(3);
                 zeros(6,3) 1e-4*eye(6) zeros(6,3);
                 zeros(3)   zeros(3,6)  500*eye(3)];                         % 方差矩阵，依照论文中table I设置的值
@@ -46,8 +87,9 @@ w_cal        = data.w - w_noise;
 
 %% Select correction interval
 % 5s movement data for calibration
-start       = 500;
-range       = start+1:1:start+1+1000;
+% start       = 500;
+% range       = start+1:1:start+1+1000;
+range       = 1:1:testlength-1;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% EKF Calibration
